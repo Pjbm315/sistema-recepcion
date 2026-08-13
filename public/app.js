@@ -1,9 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     const usuarioGuardado = JSON.parse(localStorage.getItem('usuario'));
 
-    // --- MANEJO DE LOGIN (Si estamos en index.html) ---
+    // --- MANEJO DE LOGIN ---
     const loginForm = document.getElementById('loginForm') || document.querySelector('form');
-    if (loginForm && window.location.pathname.includes('index.html') || window.location.pathname === '/') {
+    if (loginForm && (window.location.pathname.includes('index.html') || window.location.pathname === '/')) {
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const emailInput = document.querySelector('input[type="email"]') || document.querySelector('input[type="text"]');
@@ -35,11 +35,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Mostrar datos del usuario
+        // Mostrar credenciales
         document.getElementById('user-name').textContent = usuarioGuardado.username;
-        document.getElementById('user-role').textContent = usuarioGuardado.rol;
+        document.getElementById('user-role').textContent = usuarioGuardado.rol.toUpperCase();
 
-        // BOTÓN CERRAR SESIÓN
+        // Cierre de Sesión
         const logoutBtn = document.getElementById('logout-btn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
@@ -48,14 +48,49 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // MOSTRAR PANEL ADMIN SI EL ROL ES ADMIN
+        // Cargar historial de visitas (Disponible para todos)
+        cargarVisitas();
+
+        // Formulario Registrar Visita
+        const visitorForm = document.getElementById('visitor-form');
+        if (visitorForm) {
+            visitorForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const nombre = document.getElementById('vis-nombre').value;
+                const cedula = document.getElementById('vis-cedula').value;
+                const asunto = document.getElementById('vis-asunto').value;
+
+                try {
+                    const res = await fetch('/api/visitas', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            nombre,
+                            cedula,
+                            asunto,
+                            registrado_por: usuarioGuardado.username
+                        })
+                    });
+
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error);
+
+                    alert('✅ Visita registrada con éxito');
+                    visitorForm.reset();
+                    cargarVisitas();
+                } catch (err) {
+                    alert('❌ Error: ' + err.message);
+                }
+            });
+        }
+
+        // VISTA EXCLUSIVA DE ADMINISTRADOR
         if (usuarioGuardado.rol === 'admin') {
             const adminSection = document.getElementById('admin-section');
             if (adminSection) adminSection.classList.remove('hidden');
 
             cargarUsuarios();
 
-            // Formulario Crear Usuario
             const createUserForm = document.getElementById('create-user-form');
             if (createUserForm) {
                 createUserForm.addEventListener('submit', async (e) => {
@@ -87,7 +122,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Función para cargar la lista de usuarios en la tabla
+// Función para cargar tabla de visitas
+async function cargarVisitas() {
+    try {
+        const res = await fetch('/api/visitas');
+        const visitas = await res.json();
+        const tbody = document.getElementById('visits-table-body');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+        visitas.forEach(v => {
+            const tr = document.createElement('tr');
+            const fecha = new Date(v.fecha_ingreso).toLocaleString();
+            tr.innerHTML = `
+                <td>${fecha}</td>
+                <td><strong>${v.nombre}</strong></td>
+                <td>${v.cedula}</td>
+                <td>${v.asunto}</td>
+                <td><small>${v.registrado_por}</small></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (err) {
+        console.error('Error al cargar visitas:', err);
+    }
+}
+
+// Función para cargar tabla de usuarios
 async function cargarUsuarios() {
     try {
         const res = await fetch('/api/usuarios');
@@ -107,6 +168,6 @@ async function cargarUsuarios() {
             tbody.appendChild(tr);
         });
     } catch (err) {
-        console.error('Error cargando usuarios:', err);
+        console.error('Error al cargar usuarios:', err);
     }
 }
