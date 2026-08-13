@@ -3,20 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Sistema Recepci&oacute;n</title>
+    <title>Panel de Control - Control de Acceso</title>
     <style>
         body { font-family: Arial, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 15px; }
-        .btn-logout { background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+        .btn-logout { background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
         .container { margin-top: 20px; display: grid; gap: 20px; }
         .card { background: #1e293b; padding: 20px; border-radius: 8px; border: 1px solid #334155; }
         .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; }
-        input, select { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: white; box-sizing: border-box; }
-        button.btn-primary { background: #6366f1; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { padding: 10px; border: 1px solid #334155; text-align: left; }
-        th { background: #0f172a; }
+        label { display: block; margin-bottom: 5px; color: #94a3b8; }
+        input, select, textarea { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: white; box-sizing: border-box; }
+        button.btn-primary { background: #6366f1; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; }
+        button.btn-primary:hover { background: #4f46e5; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; border: 1px solid #334155; text-align: left; }
+        th { background: #0f172a; color: #818cf8; }
         .hidden { display: none; }
     </style>
 </head>
@@ -24,16 +25,54 @@
 
     <div class="header">
         <div>
-            <h2>Bienvenido, <span id="user-name">...</span></h2>
-            <small>Rol: <strong id="user-role">...</strong></small>
+            <h2 style="margin: 0;">Bienvenido, <span id="user-name">...</span></h2>
+            <small>Rol actual: <strong id="user-role" style="color: #818cf8;">...</strong></small>
         </div>
-        <button id="logout-btn" class="btn-logout">Cerrar Sesi&oacute;n</button>
+        <button id="logout-btn" class="btn-logout">Cerrar Sesión</button>
     </div>
 
     <div class="container">
+        
+        <!-- SECCIÓN RECEPCIÓN / GENERAL: REGISTRO DE VISITANTES -->
+        <div class="card">
+            <h3>Registrar Nuevo Visitante</h3>
+            <form id="visitor-form">
+                <div class="form-group">
+                    <label>Nombre y Apellido del Visitante</label>
+                    <input type="text" id="vis-nombre" placeholder="Ej: Juan Pérez" required>
+                </div>
+                <div class="form-group">
+                    <label>Cédula / Documento de Identidad</label>
+                    <input type="text" id="vis-cedula" placeholder="Ej: V-12345678" required>
+                </div>
+                <div class="form-group">
+                    <label>Asunto o Persona a Visitar</label>
+                    <input type="text" id="vis-asunto" placeholder="Ej: Entrevista / Reunión con Recursos Humanos" required>
+                </div>
+                <button type="submit" class="btn-primary">Registrar Entradas</button>
+            </form>
+        </div>
+
+        <!-- SECCIÓN: HISTORIAL DE VISITAS -->
+        <div class="card">
+            <h3>Historial de Entradas y Visitas</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha/Hora</th>
+                        <th>Visitante</th>
+                        <th>Cédula</th>
+                        <th>Asunto</th>
+                        <th>Registrado por</th>
+                    </tr>
+                </thead>
+                <tbody id="visits-table-body"></tbody>
+            </table>
+        </div>
+
         <!-- SECCIÓN EXCLUSIVA PARA ADMINISTRADORES -->
         <div id="admin-section" class="card hidden">
-            <h3>Gest&oacute;n de Usuarios y Roles</h3>
+            <h3>Panel de Administración: Gestión de Usuarios</h3>
             
             <form id="create-user-form">
                 <div class="form-group">
@@ -41,24 +80,24 @@
                     <input type="text" id="new-username" required>
                 </div>
                 <div class="form-group">
-                    <label>Correo Electr&oacute;nico</label>
+                    <label>Correo Electrónico</label>
                     <input type="email" id="new-email" required>
                 </div>
                 <div class="form-group">
-                    <label>Contrase&ntilde;a</label>
+                    <label>Contraseña</label>
                     <input type="password" id="new-password" required>
                 </div>
                 <div class="form-group">
-                    <label>Rol asignado</label>
+                    <label>Rol Asignado</label>
                     <select id="new-role">
-                        <option value="recepcion">Recepci&oacute;n</option>
+                        <option value="recepcion">Recepción</option>
                         <option value="admin">Administrador</option>
                     </select>
                 </div>
-                <button type="submit" class="btn-primary">Crear Usuario</button>
+                <button type="submit" class="btn-primary" style="background: #10b981;">Crear Usuario</button>
             </form>
 
-            <h4 style="margin-top: 25px;">Usuarios Registrados</h4>
+            <h4 style="margin-top: 25px;">Lista de Usuarios del Sistema</h4>
             <table>
                 <thead>
                     <tr>
@@ -72,11 +111,6 @@
             </table>
         </div>
 
-        <!-- SECCIÓN GENERAL -->
-        <div class="card">
-            <h3>Control de Recepci&oacute;n</h3>
-            <p>Aqu&iacute; va el panel de control general del acceso a las instalaciones.</p>
-        </div>
     </div>
 
     <script src="app.js"></script>
