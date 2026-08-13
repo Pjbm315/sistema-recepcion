@@ -17,7 +17,6 @@ const db = new sqlite3.Database(dbPath);
 
 // Inicializar la tabla y el usuario Administrador
 db.serialize(() => {
-    // 1. Crear tabla usuarios si no existe
     db.run(`CREATE TABLE IF NOT EXISTS usuarios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE,
@@ -26,43 +25,28 @@ db.serialize(() => {
         rol TEXT
     )`, (err) => {
         if (!err) {
-            // Intentar añadir la columna email por compatibilidad si no existía
             db.run(`ALTER TABLE usuarios ADD COLUMN email TEXT`, () => {});
         }
     });
 
-    // 2. Insertar usuario admin por defecto si aún no existe
+    // Crear admin por defecto si no existe
     const username = 'admin';
     const email = 'admin@correo.com';
     const passwordOriginal = 'admin123';
     const rol = 'admin';
 
     db.get('SELECT * FROM usuarios WHERE username = ? OR email = ?', [username, email], async (err, usuarioExistente) => {
-        if (err) {
-            console.error('❌ Error al consultar la BD:', err.message);
-            return;
-        }
-
-        if (!usuarioExistente) {
+        if (!err && !usuarioExistente) {
             const passwordHash = await bcrypt.hash(passwordOriginal, 10);
             db.run(
                 'INSERT INTO usuarios (username, email, password, rol) VALUES (?, ?, ?, ?)',
-                [username, email, passwordHash, rol],
-                (err) => {
-                    if (err) {
-                        console.error('❌ Error creando admin:', err.message);
-                    } else {
-                        console.log('✅ Usuario admin registrado automáticamente en la base de datos.');
-                    }
-                }
+                [username, email, passwordHash, rol]
             );
-        } else {
-            console.log('ℹ️ El usuario administrador ya existe en la base de datos.');
         }
     });
 });
 
-// Endpoint para Inicio de Sesión
+// Endpoint de Login
 app.post('/api/login', (req, res) => {
     const { email, username, password } = req.body;
     const identificador = email || username;
@@ -73,19 +57,11 @@ app.post('/api/login', (req, res) => {
 
     const query = 'SELECT * FROM usuarios WHERE email = ? OR username = ?';
     db.get(query, [identificador, identificador], async (err, usuario) => {
-        if (err) {
-            console.error('Error en BD:', err.message);
-            return res.status(500).json({ error: 'Error interno en la base de datos' });
-        }
-
-        if (!usuario) {
-            return res.status(401).json({ error: 'El usuario o correo no existe' });
-        }
+        if (err) return res.status(500).json({ error: 'Error interno en la BD' });
+        if (!usuario) return res.status(401).json({ error: 'El usuario o correo no existe' });
 
         const esValida = await bcrypt.compare(password, usuario.password);
-        if (!esValida) {
-            return res.status(401).json({ error: 'Contraseña incorrecta' });
-        }
+        if (!esValida) return res.status(401).json({ error: 'Contraseña incorrecta' });
 
         return res.json({
             mensaje: 'Inicio de sesión exitoso',
@@ -99,12 +75,44 @@ app.post('/api/login', (req, res) => {
     });
 });
 
+// Endpoint: Obtener lista de usuarios (Gestión Admin)
+app.get('/api/usuarios', (req, res) => {
+    db.all('SELECT id, username, email, rol FROM usuarios', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Error al consultar usuarios' });
+        res.json(rows);
+    });
+});
+
+// Endpoint: Crear nuevo usuario con rol (Gestión Admin)
+app.post('/api/usuarios', async (req, res) => {
+    const { username, email, password, rol } = req.body;
+
+    if (!username || !email || !password || !rol) {
+        return res.status(400).json({ error: 'Todos los campos son obligatorios' });
+    }
+
+    try {
+        const passwordHash = await bcrypt.hash(password, 10);
+        db.run(
+            'INSERT INTO usuarios (username, email, password, rol) VALUES (?, ?, ?, ?)',
+            [username, email, passwordHash, rol],
+            function (err) {
+                if (err) {
+                    return res.status(400).json({ error: 'El usuario o correo ya está registrado' });
+                }
+                res.status(201).json({ mensaje: 'Usuario creado con éxito', id: this.lastID });
+            }
+        );
+    } catch (e) {
+        res.status(500).json({ error: 'Error en el servidor' });
+    }
+});
+
 // Manejo de rutas API inexistentes
 app.use('/api/*', (req, res) => {
     res.status(404).json({ error: 'Ruta de API no encontrada' });
 });
 
-// Puerto dinámico de Render
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Servidor activo en el puerto ${PORT}`);
