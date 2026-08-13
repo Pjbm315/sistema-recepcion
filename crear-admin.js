@@ -6,7 +6,7 @@ const dbPath = path.resolve(__dirname, 'database.sqlite');
 const db = new sqlite3.Database(dbPath);
 
 db.serialize(() => {
-    // 1. Crear la tabla si no existe para evitar el SQLITE_ERROR
+    // 1. Crear tabla usuarios antes de operar
     db.run(`CREATE TABLE IF NOT EXISTS usuarios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE,
@@ -18,20 +18,18 @@ db.serialize(() => {
             console.error('❌ Error creando tabla:', err.message);
             return;
         }
-
-        // Intento de agregar columna por si acaso ya existía sin email
         db.run(`ALTER TABLE usuarios ADD COLUMN email TEXT`, () => {});
     });
 
-    // 2. Insertar o verificar el usuario admin
+    // 2. Insertar usuario administrador
     const username = 'admin';
     const email = 'admin@correo.com';
     const passwordOriginal = 'admin123';
     const rol = 'admin';
 
-    db.get('SELECT * FROM usuarios WHERE username = ?', [username], async (err, row) => {
+    db.get('SELECT * FROM usuarios WHERE username = ? OR email = ?', [username, email], async (err, row) => {
         if (err) {
-            console.error('❌ Error al consultar usuario admin:', err.message);
+            console.error('❌ Error al consultar la BD:', err.message);
             return;
         }
 
@@ -42,7 +40,7 @@ db.serialize(() => {
                 [username, email, passwordHash, rol],
                 (err) => {
                     if (err) {
-                        console.error('❌ Error al crear usuario admin:', err.message);
+                        console.error('❌ Error al crear admin:', err.message);
                     } else {
                         console.log('✅ Usuario administrador creado con éxito.');
                     }
