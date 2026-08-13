@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Control de Visitas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <!-- Navbar -->
+    <nav class="bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center">
+        <h1 class="text-xl font-bold text-indigo-400">Control de Visitas Institucional</h1>
+        <div class="flex items-center gap-4">
+            <span id="userInfo" class="text-sm text-gray-300"></span>
+            <button onclick="logout()" class="bg-red-600 hover:bg-red-700 text-xs px-3 py-1.5 rounded">Cerrar Sesión</button>
+        </div>
+    </nav>
+
+    <!-- Pestañas de Navegación -->
+    <div class="bg-gray-800 border-b border-gray-700 px-6 py-2 flex gap-4">
+        <button id="btnTabVisitas" onclick="cambiarTab('visitas')" class="px-4 py-2 rounded font-medium text-sm bg-indigo-600 text-white">Control de Visitas</button>
+        <button id="btnTabUsuarios" onclick="cambiarTab('usuarios')" class="px-4 py-2 rounded font-medium text-sm text-gray-400 hover:bg-gray-700 hidden">Gestión de Usuarios</button>
+    </div>
+
+    <!-- VISTA 1: CONTROL DE VISITAS -->
+    <div id="sectionVisitas" class="container mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Formulario Registro de Visita -->
+        <div class="bg-gray-800 p-6 rounded-lg border border-gray-700 shadow h-fit">
+            <h2 class="text-lg font-semibold mb-4 text-indigo-300">Registrar Entrada de Visitante</h2>
+            <form id="visitaForm" class="space-y-3">
+                <input type="text" id="doc" placeholder="Documento de Identidad" required class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-sm">
+                <input type="text" id="nombreCompleto" placeholder="Nombre Completo" required class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-sm">
+                <input type="text" id="telefono" placeholder="Teléfono" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-sm">
+                <input type="text" id="empresa" placeholder="Empresa / Entidad (Opcional)" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-sm">
+                <input type="text" id="depto" placeholder="Departamento Destino" required class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-sm">
+                <input type="text" id="persona" placeholder="Persona a Visitar" required class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-sm">
+                <textarea id="motivo" placeholder="Motivo de la visita" required class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-sm h-20"></textarea>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 font-medium py-2 rounded text-sm transition">Registrar Entrada</button>
+            </form>
+        </div>
+
+        <!-- Tabla de Visitas -->
+        <div class="lg:col-span-2 bg-gray-800 p-6 rounded-lg border border-gray-700 shadow">
+            <h2 class="text-lg font-semibold mb-4 text-indigo-300">Historial y Control en Tiempo Real</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm border-collapse">
+                    <thead>
+                        <tr class="bg-gray-700 text-gray-300 border-b border-gray-600">
+                            <th class="p-3">Visitante</th>
+                            <th class="p-3">Destino / Persona</th>
+                            <th class="p-3">Entrada</th>
+                            <th class="p-3">Estado</th>
+                            <th class="p-3">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaVisitas" class="divide-y divide-gray-700"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- VISTA 2: GESTIÓN DE USUARIOS (SÓLO ADMINISTRADOR) -->
+    <div id="sectionUsuarios" class="container mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 hidden">
+        <!-- Formulario Crear Usuario -->
+        <div class="bg-gray-800 p-6 rounded-lg border border-gray-700 shadow h-fit">
+            <h2 class="text-lg font-semibold mb-4 text-indigo-300">Crear Nuevo Usuario</h2>
+            <form id="usuarioForm" class="space-y-3">
+                <input type="text" id="newUserNombre" placeholder="Nombre Completo" required class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-sm">
+                <input type="email" id="newUserEmail" placeholder="Correo Electrónico" required class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-sm">
+                <input type="password" id="newUserPassword" placeholder="Contraseña Inicial" required class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-sm">
+                <div>
+                    <label class="block text-xs font-medium mb-1 text-gray-400">Rol del Sistema</label>
+                    <select id="newUserRol" required class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-sm text-gray-200">
+                        <!-- Opciones dinámicas -->
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 font-medium py-2 rounded text-sm transition">Crear Usuario</button>
+            </form>
+            <p id="userMsg" class="mt-3 text-xs text-center hidden"></p>
+        </div>
+
+        <!-- Tabla de Usuarios Registrados -->
+        <div class="lg:col-span-2 bg-gray-800 p-6 rounded-lg border border-gray-700 shadow">
+            <h2 class="text-lg font-semibold mb-4 text-indigo-300">Usuarios del Sistema</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm border-collapse">
+                    <thead>
+                        <tr class="bg-gray-700 text-gray-300 border-b border-gray-600">
+                            <th class="p-3">Nombre</th>
+                            <th class="p-3">Correo</th>
+                            <th class="p-3">Rol</th>
+                            <th class="p-3">Fecha Registro</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaUsuarios" class="divide-y divide-gray-700"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA DE USUARIOS (Sustituir dentro de #sectionUsuarios) -->
+<div class="lg:col-span-2 bg-gray-800 p-6 rounded-lg border border-gray-700 shadow">
+    <h2 class="text-lg font-semibold mb-4 text-indigo-300">Usuarios del Sistema</h2>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm border-collapse">
+            <thead>
+                <tr class="bg-gray-700 text-gray-300 border-b border-gray-600">
+                    <th class="p-3">Nombre</th>
+                    <th class="p-3">Correo</th>
+                    <th class="p-3">Rol</th>
+                    <th class="p-3">Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaUsuarios" class="divide-y divide-gray-700"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- MODAL PARA EDITAR USUARIO Y PRIVILEGIOS -->
+<div id="modalEditUser" class="fixed inset-0 bg-black/70 flex items-center justify-center hidden z-50">
+    <div class="bg-gray-800 p-6 rounded-lg border border-gray-700 w-full max-w-md shadow-2xl">
+        <h3 class="text-lg font-bold text-indigo-400 mb-4">Editar Usuario / Modificar Privilegios</h3>
+        <form id="editUserForm" class="space-y-3">
+            <input type="hidden" id="editUserId">
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Nombre Completo</label>
+                <input type="text" id="editUserNombre" required class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Correo Electrónico</label>
+                <input type="email" id="editUserEmail" required class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Asignar Rol (Privilegios)</label>
+                <select id="editUserRol" required class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-sm text-gray-200"></select>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="cerrarModalUser()" class="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 rounded text-xs">Cancelar</button>
+                <button type="submit" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 rounded text-xs font-semibold">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+    <script src="app.js"></script>
+</body>
+</html>
