@@ -11,24 +11,58 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Conexión a SQLite
+// Conexión a la base de datos SQLite
 const dbPath = path.resolve(__dirname, 'database.sqlite');
 const db = new sqlite3.Database(dbPath);
 
-// Asegurar estructura de la base de datos
+// Inicializar la tabla y el usuario Administrador
 db.serialize(() => {
+    // 1. Crear tabla usuarios si no existe
     db.run(`CREATE TABLE IF NOT EXISTS usuarios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE,
         email TEXT,
         password TEXT,
         rol TEXT
-    )`, () => {
-        db.run(`ALTER TABLE usuarios ADD COLUMN email TEXT`, () => {});
+    )`, (err) => {
+        if (!err) {
+            // Intentar añadir la columna email por compatibilidad si no existía
+            db.run(`ALTER TABLE usuarios ADD COLUMN email TEXT`, () => {});
+        }
+    });
+
+    // 2. Insertar usuario admin por defecto si aún no existe
+    const username = 'admin';
+    const email = 'admin@correo.com';
+    const passwordOriginal = 'admin123';
+    const rol = 'admin';
+
+    db.get('SELECT * FROM usuarios WHERE username = ? OR email = ?', [username, email], async (err, usuarioExistente) => {
+        if (err) {
+            console.error('❌ Error al consultar la BD:', err.message);
+            return;
+        }
+
+        if (!usuarioExistente) {
+            const passwordHash = await bcrypt.hash(passwordOriginal, 10);
+            db.run(
+                'INSERT INTO usuarios (username, email, password, rol) VALUES (?, ?, ?, ?)',
+                [username, email, passwordHash, rol],
+                (err) => {
+                    if (err) {
+                        console.error('❌ Error creando admin:', err.message);
+                    } else {
+                        console.log('✅ Usuario admin registrado automáticamente en la base de datos.');
+                    }
+                }
+            );
+        } else {
+            console.log('ℹ️ El usuario administrador ya existe en la base de datos.');
+        }
     });
 });
 
-// Ruta de Login
+// Endpoint para Inicio de Sesión
 app.post('/api/login', (req, res) => {
     const { email, username, password } = req.body;
     const identificador = email || username;
@@ -40,7 +74,7 @@ app.post('/api/login', (req, res) => {
     const query = 'SELECT * FROM usuarios WHERE email = ? OR username = ?';
     db.get(query, [identificador, identificador], async (err, usuario) => {
         if (err) {
-            console.error('Error BD:', err.message);
+            console.error('Error en BD:', err.message);
             return res.status(500).json({ error: 'Error interno en la base de datos' });
         }
 
@@ -53,7 +87,6 @@ app.post('/api/login', (req, res) => {
             return res.status(401).json({ error: 'Contraseña incorrecta' });
         }
 
-        // Respuesta exitosa siempre en formato JSON
         return res.json({
             mensaje: 'Inicio de sesión exitoso',
             usuario: {
@@ -66,13 +99,13 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// Redireccionar rutas no encontradas de la API
+// Manejo de rutas API inexistentes
 app.use('/api/*', (req, res) => {
-    res.status(404).json({ error: 'Ruta API no encontrada' });
+    res.status(404).json({ error: 'Ruta de API no encontrada' });
 });
 
-// Puerto dinámico para Render
+// Puerto dinámico de Render
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Servidor escuchando en el puerto ${PORT}`);
+    console.log(`Servidor activo en el puerto ${PORT}`);
 });
