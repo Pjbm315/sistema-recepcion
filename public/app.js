@@ -1,54 +1,112 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const loginForm = document.querySelector('form') || document.getElementById('loginForm');
-    const errorMessage = document.getElementById('error-message') || document.getElementById('errorMessage');
+    const usuarioGuardado = JSON.parse(localStorage.getItem('usuario'));
 
-    if (loginForm) {
+    // --- MANEJO DE LOGIN (Si estamos en index.html) ---
+    const loginForm = document.getElementById('loginForm') || document.querySelector('form');
+    if (loginForm && window.location.pathname.includes('index.html') || window.location.pathname === '/') {
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-
-            // Buscar inputs por typo, id o name
             const emailInput = document.querySelector('input[type="email"]') || document.querySelector('input[type="text"]');
             const passwordInput = document.querySelector('input[type="password"]');
 
-            const email = emailInput ? emailInput.value.trim() : '';
-            const password = passwordInput ? passwordInput.value : '';
-
-            if (errorMessage) errorMessage.textContent = '';
-
             try {
-                // Petición a ruta relativa /api/login
-                const response = await fetch('/api/login', {
+                const res = await fetch('/api/login', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ email, password })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: emailInput.value.trim(), password: passwordInput.value })
                 });
 
-                // Verificar que el servidor devolvió un JSON
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    throw new Error('El servidor no devolvió una respuesta JSON válida.');
-                }
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
 
-                const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data.error || 'Ocurrió un error al iniciar sesión');
-                }
-
-                // Guardar usuario en localStorage y redirigir
                 localStorage.setItem('usuario', JSON.stringify(data.usuario));
                 window.location.href = '/dashboard.html';
-
-            } catch (error) {
-                console.error('Error de autenticación:', error);
-                if (errorMessage) {
-                    errorMessage.textContent = error.message;
-                } else {
-                    alert(error.message);
-                }
+            } catch (err) {
+                alert(err.message);
             }
         });
+        return;
+    }
+
+    // --- MANEJO DE DASHBOARD ---
+    if (window.location.pathname.includes('dashboard.html')) {
+        if (!usuarioGuardado) {
+            window.location.href = '/index.html';
+            return;
+        }
+
+        // Mostrar datos del usuario
+        document.getElementById('user-name').textContent = usuarioGuardado.username;
+        document.getElementById('user-role').textContent = usuarioGuardado.rol;
+
+        // BOTÓN CERRAR SESIÓN
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                localStorage.removeItem('usuario');
+                window.location.href = '/index.html';
+            });
+        }
+
+        // MOSTRAR PANEL ADMIN SI EL ROL ES ADMIN
+        if (usuarioGuardado.rol === 'admin') {
+            const adminSection = document.getElementById('admin-section');
+            if (adminSection) adminSection.classList.remove('hidden');
+
+            cargarUsuarios();
+
+            // Formulario Crear Usuario
+            const createUserForm = document.getElementById('create-user-form');
+            if (createUserForm) {
+                createUserForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const username = document.getElementById('new-username').value;
+                    const email = document.getElementById('new-email').value;
+                    const password = document.getElementById('new-password').value;
+                    const rol = document.getElementById('new-role').value;
+
+                    try {
+                        const res = await fetch('/api/usuarios', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username, email, password, rol })
+                        });
+
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error);
+
+                        alert('✅ Usuario creado exitosamente');
+                        createUserForm.reset();
+                        cargarUsuarios();
+                    } catch (err) {
+                        alert('❌ Error: ' + err.message);
+                    }
+                });
+            }
+        }
     }
 });
+
+// Función para cargar la lista de usuarios en la tabla
+async function cargarUsuarios() {
+    try {
+        const res = await fetch('/api/usuarios');
+        const usuarios = await res.json();
+        const tbody = document.getElementById('users-table-body');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+        usuarios.forEach(u => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${u.id}</td>
+                <td>${u.username}</td>
+                <td>${u.email || '-'}</td>
+                <td><strong>${u.rol}</strong></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (err) {
+        console.error('Error cargando usuarios:', err);
+    }
+}
