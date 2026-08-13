@@ -172,6 +172,14 @@
     "start": "node server.js"
   },
   "keywords": [],
+  {
+  "name": "sistema-recepcion",
+  "version": "1.0.0",
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": { ... }
+}
   "author": "",
   "license": "ISC",
   "type": "commonjs"
