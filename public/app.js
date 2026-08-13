@@ -1,5 +1,5 @@
 // public/app.js
-const API_URL = 'https://sistema-recepcion.onrender.com';
+const API_URL = 'http://localhost:3000';
 
 // Redirección por autenticación
 if (window.location.pathname.endsWith('dashboard.html')) {
