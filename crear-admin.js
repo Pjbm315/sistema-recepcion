@@ -1,35 +1,45 @@
+const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
-require('dotenv').config();
-const sqlite3 = require('sqlite3');
-const { open } = require('sqlite');
+const path = require('path');
 
-(async () => {
-    // Abrir conexión a la base de datos local
-    const db = await open({
-        filename: './database.sqlite',
-        driver: sqlite3.Database
-    });
+const dbPath = path.resolve(__dirname, 'database.sqlite');
+const db = new sqlite3.Database(dbPath);
 
-    // Configura los datos del usuario que deseas crear
-    const nombre = "Nuevo Admin";
-    const email = "admin2@institucion.com";
-    const passwordPlana = "admin123456";
-    const rolId = 1; // 1 = Administrador, 2 = Recursos Humanos, 3 = Recepcion
+db.serialize(() => {
+    // 1. Crear la tabla si aún no existe
+    db.run(`CREATE TABLE IF NOT EXISTS usuarios (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
+        password TEXT,
+        rol TEXT
+    )`);
 
-    try {
-        const passwordHash = await bcrypt.hash(passwordPlana, 10);
-        
-        await db.run(
-            'INSERT INTO usuarios (nombre, email, password_hash, rol_id) VALUES (?, ?, ?, ?)',
-            [nombre, email, passwordHash, rolId]
-        );
+    // 2. Verificar o insertar el usuario admin
+    const username = 'admin';
+    const passwordOriginal = 'admin123'; // Cambia esta contraseña si lo deseas
+    const rol = 'admin';
 
-        console.log(`✅ Usuario ${email} creado con éxito.`);
-    } catch (error) {
-        if (error.message.includes('UNIQUE constraint failed')) {
-            console.error('❌ El correo ya existe en la base de datos.');
-        } else {
-            console.error('❌ Error al crear usuario:', error.message);
+    db.get('SELECT * FROM usuarios WHERE username = ?', [username], async (err, row) => {
+        if (err) {
+            console.error('❌ Error al consultar la base de datos:', err.message);
+            return;
         }
-    }
-})();
+
+        if (!row) {
+            const passwordHash = await bcrypt.hash(passwordOriginal, 10);
+            db.run(
+                'INSERT INTO usuarios (username, password, rol) VALUES (?, ?, ?)',
+                [username, passwordHash, rol],
+                (err) => {
+                    if (err) {
+                        console.error('❌ Error al crear usuario:', err.message);
+                    } else {
+                        console.log('✅ Usuario administrador creado con éxito.');
+                    }
+                }
+            );
+        } else {
+            console.log('ℹ️ El usuario administrador ya existe.');
+        }
+    });
+});
