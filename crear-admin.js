@@ -1,7 +1,6 @@
 require('dotenv').config();
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
-const bcrypt = require('bcryptjs');
 
 (async () => {
     // Abrir conexión a la base de datos local
