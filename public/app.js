@@ -1,7 +1,12 @@
 // public/app.js
-const API_URL = 'http://localhost:3000';
+// ✅ Opción recomendada (Ruta relativa):
+const API_URL = '';
+
+// O si prefieres la URL completa:
+// const API_URL = 'https://sistema-recepcion.onrender.com';
 
 // Redirección por autenticación
+
 if (window.location.pathname.endsWith('dashboard.html')) {
     const token = localStorage.getItem('token');
     if (!token) window.location.href = 'index.html';
