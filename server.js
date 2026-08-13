@@ -15,8 +15,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 const dbPath = path.resolve(__dirname, 'database.sqlite');
 const db = new sqlite3.Database(dbPath);
 
-// Inicializar la tabla y el usuario Administrador
+// Inicializar tablas y usuario Administrador
 db.serialize(() => {
+    // 1. Tabla de Usuarios
     db.run(`CREATE TABLE IF NOT EXISTS usuarios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE,
@@ -28,6 +29,16 @@ db.serialize(() => {
             db.run(`ALTER TABLE usuarios ADD COLUMN email TEXT`, () => {});
         }
     });
+
+    // 2. Tabla de Visitas
+    db.run(`CREATE TABLE IF NOT EXISTS visitas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT,
+        cedula TEXT,
+        asunto TEXT,
+        fecha_ingreso DATETIME DEFAULT CURRENT_TIMESTAMP,
+        registrado_por TEXT
+    )`);
 
     // Crear admin por defecto si no existe
     const username = 'admin';
@@ -75,7 +86,7 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// Endpoint: Obtener lista de usuarios (Gestión Admin)
+// --- ENDPOINTS DE USUARIOS ---
 app.get('/api/usuarios', (req, res) => {
     db.all('SELECT id, username, email, rol FROM usuarios', [], (err, rows) => {
         if (err) return res.status(500).json({ error: 'Error al consultar usuarios' });
@@ -83,7 +94,6 @@ app.get('/api/usuarios', (req, res) => {
     });
 });
 
-// Endpoint: Crear nuevo usuario con rol (Gestión Admin)
 app.post('/api/usuarios', async (req, res) => {
     const { username, email, password, rol } = req.body;
 
@@ -97,15 +107,38 @@ app.post('/api/usuarios', async (req, res) => {
             'INSERT INTO usuarios (username, email, password, rol) VALUES (?, ?, ?, ?)',
             [username, email, passwordHash, rol],
             function (err) {
-                if (err) {
-                    return res.status(400).json({ error: 'El usuario o correo ya está registrado' });
-                }
+                if (err) return res.status(400).json({ error: 'El usuario o correo ya está registrado' });
                 res.status(201).json({ mensaje: 'Usuario creado con éxito', id: this.lastID });
             }
         );
     } catch (e) {
         res.status(500).json({ error: 'Error en el servidor' });
     }
+});
+
+// --- ENDPOINTS DE VISITAS ---
+app.get('/api/visitas', (req, res) => {
+    db.all('SELECT * FROM visitas ORDER BY fecha_ingreso DESC', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Error al obtener visitas' });
+        res.json(rows);
+    });
+});
+
+app.post('/api/visitas', (req, res) => {
+    const { nombre, cedula, asunto, registrado_por } = req.body;
+
+    if (!nombre || !cedula || !asunto) {
+        return res.status(400).json({ error: 'Todos los campos de la visita son obligatorios' });
+    }
+
+    db.run(
+        'INSERT INTO visitas (nombre, cedula, asunto, registrado_por) VALUES (?, ?, ?, ?)',
+        [nombre, cedula, asunto, registrado_por || 'Recepción'],
+        function (err) {
+            if (err) return res.status(500).json({ error: 'Error al registrar la visita' });
+            res.status(201).json({ mensaje: 'Visita registrada con éxito', id: this.lastID });
+        }
+    );
 });
 
 // Manejo de rutas API inexistentes
